@@ -6,5 +6,33 @@
         "start": "echo 'Start script not defined'",
         "test": "echo 'Test script not defined'",
         "build-all": "pnpm run -r --sort build"
+    },
+    "pnpm": {
+        "overrides": {
+            "@helios-lang/cbor": "workspace:^",
+            "@helios-lang/cli-utils": "workspace:^",
+            "@helios-lang/compat": "workspace:^",            
+            "@helios-lang/compiler": "workspace:^",
+            "@helios-lang/compiler-utils": "workspace:^",
+            "@helios-lang/codec-utils": "workspace:^",
+            "@helios-lang/contract-utils": "workspace:^",
+            "@helios-lang/crypto": "workspace:^",
+            "@helios-lang/era": "workspace:^",
+            "@helios-lang/esbuild-plugin": "workspace:^",            
+            "@helios-lang/ir": "workspace:^",
+            "@helios-lang/ledger": "workspace:^",
+            "@helios-lang/ledger-allegra": "workspace:^",
+            "@helios-lang/ledger-alonzo": "workspace:^",
+            "@helios-lang/ledger-babbage": "workspace:^",
+            "@helios-lang/ledger-byron": "workspace:^",
+            "@helios-lang/ledger-conway": "workspace:^",
+            "@helios-lang/ledger-mary": "workspace:^",
+            "@helios-lang/ledger-shelley": "workspace:^",            
+            "@helios-lang/rollup-plugin": "workspace:^",
+            "@helios-lang/tx-utils": "workspace:^",
+            "@helios-lang/type-utils": "workspace:^",
+            "@helios-lang/uplc": "workspace:^"
+        }
     }
+
 }
