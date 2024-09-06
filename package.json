@@ -1,0 +1,9 @@
+{
+    "name": "helios-all",
+    "version": "1.0.0",
+    "private": true,
+    "scripts": {
+        "start": "echo 'Start script not defined'",
+        "test": "echo 'Test script not defined'"
+    }
+}

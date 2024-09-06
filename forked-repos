@@ -1,0 +1,112 @@
+#!/bin/bash
+
+echo "This script will add remotes for any of the HeliosLang repos you have forked."
+[[ -f .fork-config ]] || {
+  echo
+  echo "ERROR: No .fork-config found." >&2
+  echo >&2
+  echo "Copy .fork-config.example to .fork-config and update your details there." >&2
+  exit 1
+}
+source ./.fork-config
+
+echo -n fetching Helios repo list...
+REPOS=$(
+	curl --silent https://github.com/orgs/HeliosLang/repositories.json | jq -r '.payload.repositories[].name'
+)
+if [[ $? -ne 0 ]] ; then {
+    echo
+    echo "Error: failed fetching Helios repo list ... are you online?" >&2
+    exit 1
+} fi
+
+echo "ok"
+echo
+
+for REPO_NAME in $REPOS ; do { 
+# for REPO_NAME in compiler workspace ; do { 
+    TARGET_DIR=$REPO_NAME
+    if [[ "workspace" == "${REPO_NAME}" ]] ; then
+        TARGET_DIR="."
+    fi
+    pushd $TARGET_DIR >/dev/null
+
+   WITH_PREFIX=${REPO_PREPEND}${REPO_NAME}
+   USER_REPO_P=${GITHUB_USERNAME}/${WITH_PREFIX}
+   USER_REPO=${GITHUB_USERNAME}/${REPO_NAME}
+
+    git remote | grep ${FORK_ORIGIN_NAME} >/dev/null && {
+        # echo "Remote ${FORK_ORIGIN_NAME} already exists.  Skipping..."
+        popd >/dev/null
+        continue
+    }
+
+   FOUND=$(
+        curl --silent --fail "https://api.github.com/repos/${USER_REPO_P}" 
+    )
+    RESULT=$?
+    [[ $RESULT -ne 0 ||  -z $FOUND ]] || {
+        REPO_PARENT_FOUND=$(
+            echo "${FOUND}"  | jq -r ".parent.full_name"
+        )
+        USER_REPO_FOUND="$USER_REPO_P"
+        if [[ "${REPO_PARENT_FOUND}" == "HeliosLang/${REPO_NAME}" ]] ; then
+            echo "Found your fork of HeliosLang/${REPO_NAME} at https://github.com/${USER_REPO_P}"
+            REPO_FOUND="${USER_REPO_P}"
+        else
+            echo "${USER_REPO_P} is not a fork of HeliosLang/${REPO_NAME}.  Skipping..."
+            FOUND=""
+        fi
+    }
+    [[ $RESULT -ne 0 ||  -z $FOUND ]] && {
+        FOUND=$(
+            curl --silent --fail "https://api.github.com/repos/${USER_REPO}" 
+        )
+
+        [[ $? -ne 0 || -z $FOUND ]] && {
+        echo "No fork of HeliosLang/${REPO_NAME} found at https://github.com/${USER_REPO_P}"
+            echo "No fork found at ${USER_REPO} either.  Skipping..."
+            echo
+            popd >/dev/null
+            continue
+        }
+        REPO_PARENT_FOUND=$(
+            echo "${FOUND}"  | jq -r ".parent.full_name"
+        )
+        if [[ "${REPO_PARENT_FOUND}" == "HeliosLang/${REPO_NAME}" ]] ; then
+            echo "Found your fork of HeliosLang/${REPO_NAME} at https://github.com/${USER_REPO}"
+            REPO_FOUND="${USER_REPO}"
+        else
+            echo "${USER_REPO} is not a fork of HeliosLang/${REPO_NAME}.  Skipping..."
+            echo
+            popd >/dev/null
+            continue
+        fi
+             
+    }
+    read -p "Add remote for ${REPO_FOUND}? [Y/n] " -e -iY ADD_REMOTE
+    [[ "${ADD_REMOTE}" != "Y" ]] && {
+        echo "Skipping add remote for ${REPO_FOUND} ..."
+        echo
+        popd >/dev/null
+        continue
+    }
+    echo git remote add -m main -f ${FORK_ORIGIN_NAME} "git@github.com:${REPO_FOUND}"
+    git remote add -m main -f ${FORK_ORIGIN_NAME} "git@github.com:${REPO_FOUND}"
+    echo
+
+   popd >/dev/null
+} ; done
+
+for REPO_NAME in $REPOS ; do { 
+    TARGET_DIR=$REPO_NAME
+    if [[ "workspace" == "${REPO_NAME}" ]] ; then
+        TARGET_DIR="."
+    fi
+    pushd $TARGET_DIR >/dev/null
+
+    git remote | grep ${FORK_ORIGIN_NAME} >/dev/null && {
+        echo "  ✅ remote '${FORK_ORIGIN_NAME}' in ${TARGET_DIR}/"
+    }
+    popd >/dev/null
+} done
