@@ -1,0 +1,30 @@
+#!/bin/bash
+
+echo -n fetching Helios repo list...
+REPOS=$(
+	curl --silent https://github.com/orgs/HeliosLang/repositories.json | jq -r '.payload.repositories[].name'
+)
+if [[ $? -ne 0 ]] ; then {
+    echo
+    echo "Error: failed fetching Helios repo list ... are you online?" >&2
+    exit 1
+} fi
+
+echo "ok"
+echo "Running \`git status --short\` in each repo ... "
+echo
+
+for a in $REPOS ; do { 
+    DIR=$a
+    LABEL=$a
+    if [[ "workspace" == "${a}" ]] ; then
+        DIR="."
+        LABEL="workspace in ./"
+    fi
+   pushd $DIR >/dev/null
+   git status --short | while read x ; do {
+     printf  "%18s | %s\n" "$LABEL" "$x"
+   } done
+   popd > /dev/null
+} ; done | LESS="${LESS:-} -F " ${PAGER:-less}
+

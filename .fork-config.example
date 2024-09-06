@@ -1,0 +1,13 @@
+
+# This file provides shell-script variables for the `forked-repos` script
+
+# your github username
+GITHUB_USERNAME="awesomecontributor"
+
+# if you fork the helios repos with this prefix added, the script will find them.
+# if you fork without the prefix added, the script will still find them.
+REPO_PREPEND="helios-"
+
+# name of the git remote for your fork.  We'll add it with `git origin add $FORK_ORIGIN_NAME
+FORK_ORIGIN_NAME="fork"
+
