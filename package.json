@@ -4,6 +4,7 @@
     "private": true,
     "scripts": {
         "start": "echo 'Start script not defined'",
-        "test": "echo 'Test script not defined'"
+        "test": "echo 'Test script not defined'",
+        "build-all": "pnpm run -r --sort build"
     }
 }
