@@ -1,30 +1,35 @@
 #!/bin/bash
 
-echo -n fetching Helios repo list...
-REPOS=$(
-	curl --silent https://github.com/orgs/HeliosLang/repositories.json | jq -r '.payload.repositories[].name'
-)
-if [[ $? -ne 0 ]] ; then {
-    echo
-    echo "Error: failed fetching Helios repo list ... are you online?" >&2
-    exit 1
-} fi
+source ./functions.sh
 
-echo "ok"
-echo "Running \`git status --short\` in each repo ... "
-echo
+showStatus() {
+    {
+#        git -c color.ui=always status --short  -b 
+        RESULTS=$({ 
+            git  -c color.ui=always status --show-stash | 
+            grep -v "Your branch is up to date with" |
+            grep -v "no changes added to commit" |
+            grep -v "Changes not staged for commit" |
+            grep -v "working tree clean" |
+            grep -v "what will be committed" |
+            grep -v "to discard changes in working directory" |
+            grep -v "git restore --staged" |
+            grep -v "^On branch " |
+            grep -ve "^\s*$" |
+            cat
+        })
+        [[ -z $RESULTS ]] || {
+            echo "$RESULTS"
+            echo "--------------------------------------------------"
+        }
+    } | labeledOutput $LABEL
+}
 
-for a in $REPOS ; do { 
-    DIR=$a
-    LABEL=$a
-    if [[ "workspace" == "${a}" ]] ; then
-        DIR="."
-        LABEL="workspace in ./"
-    fi
-   pushd $DIR >/dev/null
-   git status --short | while read x ; do {
-     printf  "%18s | %s\n" "$LABEL" "$x"
-   } done
-   popd > /dev/null
-} ; done | LESS="${LESS:-} -F " ${PAGER:-less}
+{
+    eachRepo parallel buffered "checking \`git status\` in each repo" \
+        showStatus
+ } | optionalPager
+
+echo >&2
+echo "run ./need-commits to see a list of repos needing commits" >&2
 
