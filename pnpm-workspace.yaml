@@ -1,6 +1,5 @@
 packages:
   - "cbor"
-  - "cli"
   - "cli-utils"
   - "codec-utils"
   - "compat"
