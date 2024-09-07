@@ -53,10 +53,11 @@ eachRepoUsage() {
             echo "Error: eachRepo(): $err"
             echo
         }
-        echo "  Usage: eachRepo [parallel [buffered]] \"‹activity description›\" \"callbackFuncName\""
+        echo "  Usage: eachRepo [parallel [buffered]] \"‹activity description›\" \"callbackFuncName\" [...repos]"
         echo
-        echo "    Your named callback function (a quoted string!) will be called for each repo"
-        echo "     ... with variables \$REPO, \$DIR, \$LABEL, with \`pwd\` set to the repo dir."
+        echo "    Your named callback function will be called for each repo"
+        echo "     ... with \`pwd\` set to the repo dir"
+        echo "     ... and shell variables \$REPO, \$DIR, \$LABEL available"
         echo
         echo "    The function returns when all repos are done processing through your callback."
         echo 
@@ -64,35 +65,15 @@ eachRepoUsage() {
         echo
         echo "    With 'parallel buffered', each result is collected, & emitted only as it finishes."
         echo
+        echo "    With a list of repos, only those repos are processed.  Otherwise, all Helios repos are processed."
+        echo
         echo aborted
     } >&2
     exit 42
 }
 
 REPOS=""
-eachRepo() {
-    parallel=""
-    buffered=""
-    [[ "$1" == "parallel" ]] && {
-        parallel="$1"
-        shift
-        [[ "$1" == "buffered" ]] && {
-            buffered="$1"
-            mkTempDir
-            shift
-        }
-    }
-    [[ "$1" == "buffered" ]] && {
-        eachRepoUsage "'buffered' option invalid without 'parallel' specified first"
-    }
-
-    activity=$1
-    [[ $# -gt 2 ]] && eachRepoUsage "extra args ($*)"
-    [[ -z "$2" ]] && eachRepoUsage "missing callbackFunctionName ($*)" 
-
-    func=$2
-    [[ -z $(type -t "$func") ]] && eachRepoUsage "callback function not found:  '$func'" 
-
+fetchRepoList() {
     [[ -z "$REPOS" ]] && {
         echo -n "  -- fetching Helios repo list ... "
         REPOS=$(
@@ -110,13 +91,45 @@ eachRepo() {
             OK=1
             echo ok
         } ; fi
+       [[ -z "$OK" ]] && exit 42
     } >&2
-    [[ -z "$OK" ]] && exit 42
+}
+
+eachRepo() {
+    parallel=""
+    buffered=""
+    [[ "$1" == "parallel" ]] && {
+        parallel="$1"
+        shift
+        [[ "$1" == "buffered" ]] && {
+            buffered="$1"
+            mkTempDir
+            shift
+        }
+    }
+    [[ "$1" == "buffered" ]] && {
+        eachRepoUsage "'buffered' option invalid without 'parallel' specified first"
+    }
+
+    activity=$1
+    # [[ $# -gt 2 ]] && eachRepoUsage "extra args ($*)"
+    [[ -z "$2" ]] && eachRepoUsage "missing callbackFunctionName ($*)" 
+    shift
+    func=$1
+    [[ -z $(type -t "$func") ]] && eachRepoUsage "callback function not found:  '$func'" 
+    shift
+
+    if [[ $# -gt 0 ]] ; then {
+        ITERATE_REPOS=$*
+    } else {
+        fetchRepoList
+        ITERATE_REPOS=$REPOS
+    } ; fi
     echo "  -- $activity ..." >&2
     echo >&2
 
     # set -x
-    for REPO in $REPOS ; do {
+    for REPO in $ITERATE_REPOS ; do {
         DIR=$REPO
         LABEL=$REPO
         if [[ "workspace" == "${REPO}" ]] ; then

@@ -31,5 +31,5 @@ showStatus() {
  } | optionalPager
 
 echo >&2
-echo "To commit changes in these repos, run ./commit-all" >&2
+echo "run ./need-commits to see a list of repos needing commits" >&2
 

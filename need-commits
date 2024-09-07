@@ -1,0 +1,66 @@
+#!/bin/bash
+
+source ./functions.sh
+source .fork-config
+
+#  HAVE_DIFFS=$(./gsall 2>/dev/null | cut -d ' ' -f1 | uniq )
+
+gitStatus() {
+    git -c color.ui=always status --short  -b | labeledOutput $LABEL
+}
+gitStatusPlain() {
+    git status --short  -b | labeledOutput $DIR
+}
+# eachRepo parallel buffered "checking \`git status\` in each repo" gitStatus
+
+HAVE_DIFFS=$(
+    eachRepo parallel buffered "project with diffs" gitStatusPlain | cut -d ' ' -f1 | uniq
+)
+# echo "$HAVE_DIFFS"
+
+filters=$(
+    echo "$HAVE_DIFFS" | while read REPO ; do {
+        echo "--filter $REPO"
+    } done
+)
+
+# echo "Repos with changes to be committed:"
+# echo "$HAVE_DIFFS" | while read REPO; do
+#     echo " - $REPO"
+# done
+
+NEED=$( 
+    pnpm -r $filters exec bash -c 'basename $(pwd)'  2> >(labeledErrors "pnpm") | grep -v "No projects matched"
+)
+# pnpm -r $filters exec $COMMIT_TOOL
+
+show() {
+    echo "Reviewing repos with changes to be committed:"
+    echo
+    echo "$NEED" | while read REPO; do
+        echo " - $REPO"
+    done
+    echo
+}
+show
+FIRST=$(echo "$NEED" | head -n1)
+pushd $FIRST  >/dev/null
+#bash --noprofile --norc
+# bash  --norc
+LABEL=$FIRST gitStatus
+echo "Spawning bash for $FIRST ..."
+echo " ... exit the shell when done committing ..."
+# start bash with a custom prompt showing "REPO: $FIRST"
+# and a space at the end
+bash --noprofile
+#bash --rcfile <(echo "PS1='REPO: $FIRST '") --norc
+#PS1="REPO: $FIRST $ " bash --noprofile
+
+popd >/dev/null
+
+show
+echo
+echo "... done with $FIRST"
+echo "Rerun ./need-commits to review remaining repos"
+exit
+
