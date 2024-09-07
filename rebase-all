@@ -1,0 +1,82 @@
+#!/bin/bash
+
+[[ -f .fork-config ]] || {
+  echo
+  echo "ERROR: No .fork-config found." >&2
+  echo >&2
+  echo "Copy .fork-config.example to .fork-config and update your details there." >&2
+  exit 1
+}
+source ./.fork-config
+source ./functions.sh
+
+fetchRemotes() {
+    # echo hi42
+    # local REPO=$1
+    # local DIR=$2
+    # local LABEL=$3
+    # local TEMP=$4
+    {
+        echo "remotes: $(git remote | tr "\n" " ")"
+        git fetch --all -q
+    } | labeledOutput $LABEL "fetch | " 
+}
+
+eachRepo "fetching upstream changes" fetchRemotes
+#eachRepo parallel buffered "Fetching upstream changes" fetchRemotes
+wait
+
+rebaseRepo() {
+    {
+        # commits we have pending, not merged to origin/main:
+        # git log --pretty="%h %as %<(8,trunc)%aN %s%Cblue% d" origin/main..HEAD
+
+        # commits we need to replay on top of:
+        REBASE_NEEDED=$(
+            git -c color.ui=always log --pretty="%h %as %<(18,trunc)%aN %<(80,trunc)%s " HEAD..origin/main
+        )
+
+        [[ $REBASE_NEEDED ]] && {
+            echo "needs rebase to include commits: "
+            echo "$REBASE_NEEDED"
+
+            STASHED=""
+            # check silently if there are pending changes needing to be stashed:
+            git diff --quiet || {
+                echo "Uncommitted changes.  Stashing..."
+                git stash save
+                STASHED=1
+            }
+            git diff-index --quiet HEAD || {
+                echo "Uncommitted changes in index. Stashing..."
+                git stash save
+                STASHED=1
+            }
+            git rebase origin/main 2>&1
+
+            [[ $STASHED ]] && {
+                echo "Popping stash..."
+                git stash pop
+            }
+            git -c color.ui=always  status | grep -v "nothing to commit"
+            git -c color.ui=always  status --show-stash | grep -v "nothing to commit"
+        }
+
+        # list commits that are in origin/main but not in HEAD
+        # echo "Commits in origin/main but not in HEAD:"
+        # git log --pretty="%h %as %<(8,trunc)%aN %s%Cblue% d" origin/main..HEAD
+
+    } | labeledOutput $LABEL
+}
+rebaseActivity=$(
+    eachRepo parallel buffered "rebasing"  rebaseRepo
+)
+[[ -z $rebaseActivity ]] && {
+    echo "No rebases needed."
+    echo 
+    echo "Next: check repo status with ./gsall or Ctrl-C to exit"
+    echo
+    read -p "Next: $ " -e -i"./gsall" COMMAND_IGNORED 
+    ./gsall
+}
+

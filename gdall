@@ -1,26 +1,17 @@
 #!/bin/bash
 
-echo -n fetching Helios repo list...
-REPOS=$(
-	curl --silent https://github.com/orgs/HeliosLang/repositories.json | jq -r '.payload.repositories[].name'
-)
-if [[ $? -ne 0 ]] ; then {
-    echo
-    echo "Error: failed fetching Helios repo list ... are you online?" >&2
-    exit 1
-} fi
+source ./functions.sh
 
-echo "ok"
-echo
+showDiff() {
+    {
+        git -c color.ui=always diff
+    } | labeledOutput $LABEL
+}
 
+{
+    eachRepo parallel buffered "checking \`git diff\` in each repo" \
+        showDiff
+ } | optionalPager
 
-for a in $REPOS ; do { 
-    TARGET_DIR=$REPO_NAME
-    if [[ "workspace" == "${REPO_NAME}" ]] ; then
-        TARGET_DIR="."
-    fi
-
-   pushd $TARGET_DIR >/dev/null
-   git diff | cat
-   popd >/dev/null
-} ; done
+echo >&2
+echo "To commit changes in these repos, run ./commit-all" >&2
