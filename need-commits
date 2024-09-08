@@ -43,24 +43,22 @@ show() {
     echo
 }
 show
-FIRST=$(echo "$NEED" | head -n1)
-pushd $FIRST  >/dev/null
-#bash --noprofile --norc
-# bash  --norc
-LABEL=$FIRST gitStatus
-echo "Spawning bash for $FIRST ..."
-echo " ... exit the shell when done committing ..."
-# start bash with a custom prompt showing "REPO: $FIRST"
-# and a space at the end
-bash --noprofile
-#bash --rcfile <(echo "PS1='REPO: $FIRST '") --norc
-#PS1="REPO: $FIRST $ " bash --noprofile
+for a in $NEED; do
+    echo "  $a"
+    # wait for 3 seconds before automatically moving to the next repo
+    read -t 3 -p "Press Enter to continue or Ctrl-C to exit"
+    pushd $a  >/dev/null
+    LABEL=$a gitStatus
+    pnpm install --ignore-workspace
+    pnpm build
+    echo "Spawning bash for $a ..."
+    echo " ... exit the shell when done committing ..."
+    bash --noprofile
+    popd >/dev/null
+    echo
+    echo "... done with $a"
+done
 
-popd >/dev/null
-
-show
-echo
-echo "... done with $FIRST"
 echo "Rerun ./need-commits to review remaining repos"
 exit
 

@@ -22,8 +22,8 @@ fetchRemotes() {
     } | labeledOutput $LABEL "fetch | " 
 }
 
-eachRepo "fetching upstream changes" fetchRemotes
-#eachRepo parallel buffered "Fetching upstream changes" fetchRemotes
+# eachRepo "fetching upstream changes" fetchRemotes
+eachRepo parallel buffered "Fetching upstream changes" fetchRemotes
 wait
 
 rebaseRepo() {
