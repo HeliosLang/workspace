@@ -8,6 +8,17 @@ GITHUB_USERNAME="awesomecontributor"
 # if you fork without the prefix added, the script will still find them.
 REPO_PREPEND="helios-"
 
-# name of the git remote for your fork.  We'll add it with `git origin add $FORK_ORIGIN_NAME
-FORK_ORIGIN_NAME="fork"
+# name of the git remote for your fork.  We'll add it with 'git origin add $FORK_ORIGIN_NAME'
+# set to the empty string to skip fork setup.
+FORK_ORIGIN_NAME="origin"
 
+# When this setting is enabled, the git 'checkout.defaultRemote' option is set in each repo,
+#   ... so`git switch` chooses your fork's named branches by default.
+# During initial clone, this also has the effect of tracking your FORK_ORIGIN_NAME's "main" branch.
+GIT_DEFAULT_REMOTE="$FORK_ORIGIN_NAME"
+
+# the command that's run in each directory, when changes need to be committed
+COMMIT_TOOL="bash --noprofile"
+
+# name used for git remote indicating the upstream HeliosLang/* repos
+UPSTREAM_REMOTE_NAME="upstream"

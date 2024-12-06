@@ -2,6 +2,7 @@
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
+BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 cleanup() {
@@ -35,14 +36,14 @@ labeledOutput() {
     LABEL=$1
     EXTRA=${2:-}
     while read output ; do {
-        printf  "%-18s | ${EXTRA} %s\n" "$LABEL" "$output" 
+        printf  "%-18s |${EXTRA} %b\n" "$LABEL" "$output" 
     } done 
 }
 
 labeledErrors() {
     LABEL=$1
     while read output ; do {
-        printf  "${YELLOW}%-15sERR | %s ${NC}\n" "$LABEL" "$output" 
+        printf  "${YELLOW}%-15sERR | %b ${NC}\n" "$LABEL" "$output" 
     } done 
 }
 
@@ -53,19 +54,17 @@ eachRepoUsage() {
             echo "Error: eachRepo(): $err"
             echo
         }
-        echo "  Usage: eachRepo [parallel [buffered]] \"‹activity description›\" \"callbackFuncName\" [...repos]"
+        echo "  Usage: eachRepo [parallel [buffered]] [nocd] \"‹activity description›\" \"callbackFuncName\" [...repos]"
         echo
         echo "    Your named callback function will be called for each repo"
         echo "     ... with \`pwd\` set to the repo dir"
         echo "     ... and shell variables \$REPO, \$DIR, \$LABEL available"
         echo
-        echo "    The function returns when all repos are done processing through your callback."
-        echo 
-        echo "    If 'parallel' is specified as the first arg, repo tasks are run in parallel. "
-        echo
-        echo "    With 'parallel buffered', each result is collected, & emitted only as it finishes."
-        echo
-        echo "    With a list of repos, only those repos are processed.  Otherwise, all Helios repos are processed."
+        echo "    The function returns when all repos are done processing through your callback. Other notes:"
+        echo "     - If 'parallel' is specified as the first arg, repo tasks are run in parallel. "
+        echo "    - With 'parallel buffered', each result is collected, & emitted only as it finishes."
+        echo "    - If 'nocd' is specified, the callback function is run without changing directories."
+        echo "    - With a list of repos, only those repos are processed.  Otherwise, all Helios repos are processed."
         echo
         echo aborted
     } >&2
@@ -75,6 +74,11 @@ eachRepoUsage() {
 REPOS=""
 fetchRepoList() {
     [[ -z "$REPOS" ]] && {
+        if [[ -f ./.heliosRepos ]] ; then {
+            REPOS=$(cat ./.heliosRepos)
+            return
+        } fi
+
         echo -n "  -- fetching Helios repo list ... "
         REPOS=$(
         	curl --silent https://github.com/orgs/HeliosLang/repositories.json | 
@@ -89,6 +93,8 @@ fetchRepoList() {
             echo "Error: failed fetching Helios repo list ... are you online?"
         } else {
             OK=1
+            echo "$REPOS" > ./.heliosRepos
+            echo "created ./.heliosRepos"
             echo ok
         } ; fi
        [[ -z "$OK" ]] && exit 42
@@ -98,6 +104,7 @@ fetchRepoList() {
 eachRepo() {
     parallel=""
     buffered=""
+    nocd=""
     [[ "$1" == "parallel" ]] && {
         parallel="$1"
         shift
@@ -107,6 +114,11 @@ eachRepo() {
             shift
         }
     }
+    [[ "$1" == "nocd" ]] && {
+        nocd="$1"
+        shift
+    }
+    [[ -z "$1" ]] && eachRepoUsage "missing activity description ($*)"
     [[ "$1" == "buffered" ]] && {
         eachRepoUsage "'buffered' option invalid without 'parallel' specified first"
     }
@@ -128,6 +140,7 @@ eachRepo() {
     echo "  -- $activity ..." >&2
     echo >&2
 
+    echo "  -- repos: " $ITERATE_REPOS >&2
     # set -x
     for REPO in $ITERATE_REPOS ; do {
         DIR=$REPO
@@ -146,27 +159,27 @@ eachRepo() {
             [[ $buffered ]] && {
                 # background, buffered
                 { 
-                    pushd $DIR >/dev/null
+                    [[ -z $nocd ]] && pushd $DIR >/dev/null
                     $func > $TEMP 2> >(labeledErrors $LABEL) 
                     cat $TEMP
-                    popd > /dev/null
+                    [[ -z $nocd ]] && popd > /dev/null
                 } &
             }
             [[ $buffered ]] || {
                 # background, unbuffered
                 {
-                    pushd $DIR >/dev/null
+                    [[ -z $nocd ]] && pushd $DIR >/dev/null
                     $func 2> >(labeledErrors $LABEL) 
-                    popd > /dev/null
+                    [[ -z $nocd ]] && popd > /dev/null
                 } &
             }
         }
         [[ -z $parallel ]] && {
             # foreground; buffering is senseless
-            pushd $DIR >/dev/null
-            $func 2> >(labeledErrors $LABEL) 
-            popd > /dev/null
-        }
+            [[ -z $nocd ]] && pushd $DIR >/dev/null
+             $func  2> >(labeledErrors $LABEL)
+            [[ -z $nocd ]] && popd > /dev/null
+         } 
         # [[ "compiler" == "${REPO}" ]] && {
         #     break
         # }

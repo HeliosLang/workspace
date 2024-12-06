@@ -1,54 +1,31 @@
 #!/bin/bash
 
+source ./functions.sh
+[[ -f ./heliosRepos ]] && {
+    rm ./.heliosRepos
+}
 
-# for a in `find . -mindepth 1 -maxdepth 1 -type d` 
-echo -n fetching Helios repo list...
-REPOS=$(
-	curl --silent https://github.com/orgs/HeliosLang/repositories.json | jq -r '.payload.repositories[].name'
-)
-if [[ $? -ne 0 ]] ; then {
-    echo
-    echo "Error: failed fetching Helios repo list ... are you online?" >&2
-    exit 1
-} fi
+cloneIfNeeded() {
+    [[ -d $REPO/.git ]] || {
+        set -e
+        git clone https://github.com/HeliosLang/$REPO
+        set +e
+    } 
+}
+eachRepo parallel buffered nocd \
+     "cloning repos" cloneIfNeeded 
+    # 
 
-echo "ok"
-echo
-
-# set -x
-for REPO_NAME in $REPOS ; do { 
-    # echo $REPO_NAME
-    TARGET_DIR="${REPO_NAME}"
-    LABEL=$REPO_NAME
-    if [[ "workspace" == "${REPO_NAME}" ]] ; then
-        TARGET_DIR="."
-        LABEL="workspace in ./"
-    else {
-         if [[ -d $REPO_NAME ]] ; then true
-        else {
-            set -e
-            git clone https://github.com/HeliosLang/$REPO_NAME
-            set +e
-        } ; fi
-    } ; fi
-
-    pushd $TARGET_DIR >/dev/null
+fetchAll() {
     {
-      git fetch --all | while read content ; do { 
-        printf "%22s | %s\n" "$LABEL" "$content"
-      } done 
-      git pull | while read content ; do {
-        printf "%22s | %s\n" "$LABEL" "$content"
-      } done
-    } 2> >(
-      while read err ; do {
-         printf "ERROR %16s | %s\n" "$LABEL" "$err" >&2
-      } done
-    ) & 
+        git fetch --all
+        git pull
+    } | labeledOutput $LABEL
+}
 
-    popd >/dev/null
-} done
-wait
+eachRepo parallel buffered "fetching and updating repos" \
+    fetchAll | optionalPager
+
 echo
 echo "All repos fetched and updated."
 echo "Next: install dependencies (Ctrl-C to cancel) for all repos"

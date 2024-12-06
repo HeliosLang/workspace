@@ -46,14 +46,14 @@ show
 for a in $NEED; do
     echo "  $a"
     # wait for 3 seconds before automatically moving to the next repo
-    read -t 3 -p "Press Enter to continue or Ctrl-C to exit"
+    read -p "Press Enter to continue or Ctrl-C to exit "
     pushd $a  >/dev/null
     LABEL=$a gitStatus
     pnpm install --ignore-workspace
     pnpm build
     echo "Spawning bash for $a ..."
     echo " ... exit the shell when done committing ..."
-    bash --noprofile
+    $COMMIT_TOOL --noprofile
     popd >/dev/null
     echo
     echo "... done with $a"
