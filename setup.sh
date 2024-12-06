@@ -1,35 +1,81 @@
 #!/bin/bash
 
-echo -n fetching Helios repo list...
-REPOS=$(
-	curl --silent https://github.com/orgs/HeliosLang/repositories.json | jq -r '.payload.repositories[].name'
-)
-if [[ $? -ne 0 ]] ; then {
+# [[ -f ./.heliosRepos ]] && {
+#     echo "Helios repos already fetched.  To re-fetch, delete ./.heliosRepos before running this script." >&2
+#     exit 0
+# }
+source ./functions.sh
+
+read -p"Create and edit .fork-config file [Y/n]? " -e  CREATE_CONFIG
+{
+    [[ "y" == "$CREATE_CONFIG" ]] || 
+    [[ "Y" == "$CREATE_CONFIG" ]] || 
+    [[ "" == "$CREATE_CONFIG" ]] 
+} && {
+    echo "Creating .fork-config file"
+    [[ -f .fork-config ]] && {
+        echo "File .fork-config already exists."
+    } || { 
+        echo cp .fork-config.example .fork-config
+        cp .fork-config.example .fork-config
+        echo 
+    }
+    echo "Next: Edit the .fork-config file"
     echo
-    echo "Error: failed fetching Helios repo list ... are you online?" >&2
-    exit 1
-} fi
-echo "ok"
+    echo "If you want to use your own forks of Helios repos, now is a good time"
+    echo "  ... to arrange them.  The .fork-config file is where you can specify a repo prefix"
+    echo "  ... and set up other details about operating on your forked repos."
+    read -p "Editor: " -e -i"${EDITOR:-nano}" EDIT_WITH
+    $EDIT_WITH .fork-config
+}
+[[ -f ./.fork-config ]] && source ./.fork-config
+
+cloneIfNeeded() {
+    if [[ "workspace" == "${REPO}" ]] ; then
+        return
+    fi
+    if [[ "cli" == "${REPO}" ]] ; then
+        return
+    fi
+    [[ -d $REPO/.git ]] && {
+        echo "$REPO already cloned"
+    } || {
+        customOrigin=""
+        [[ -z "$UPSTREAM_REMOTE_NAME" ]] || {
+            customOrigin="--origin $UPSTREAM_REMOTE_NAME"
+            echo " -- using $customOrigin"
+        }
+
+        # check out using the upstream repo name
+        git clone https://github.com/HeliosLang/$REPO $customOrigin --branch main
+        [[ -z $UPSTREAM_BRANCH_NAME ]] || {
+            cd $REPO
+            echo "Renaming main branch to $UPSTREAM_BRANCH_NAME"
+            git branch -m main "$UPSTREAM_BRANCH_NAME"
+            cd -
+        }
+        [[ -z $GIT_DEFAULT_REMOTE ]] || {
+            # When this setting is enabled, the git 'checkout.defaultRemote' option is set in each repo,
+            cd $REPO
+            git config checkout.defaultRemote $GIT_DEFAULT_REMOTE
+            cd -
+        }
+    } | labeledOutput $LABEL
+}
+eachRepo parallel buffered nocd "cloning repos" cloneIfNeeded 
+echo
+echo "All repos fetched and updated."
 echo
 
-for a in $REPOS ; do { 
-    if [[ "workspace" == "${a}" ]] ; then
-        continue
-    fi
-    if [[ "cli" == "${a}" ]] ; then
-        continue
-    fi
-    
-    if [[ -d $a ]] ; then true
-    else {
-      set -e
-      git clone https://github.com/HeliosLang/$a
-      set +e
-    } ; fi
-} done
-wait
-echo
-echo "All repos fetched and updated.  Next, install dependencies (Ctrl-C to cancel) for all repos"
+
+read -p"Find forks for cloned repos [Y/n]? " -e FIND_FORKS
+{
+    [[ "y" == "$FIND_FORKS" ]] || 
+    [[ "Y" == "$FIND_FORKS" ]] || 
+    [[ "" == "$FIND_FORKS" ]] 
+} && ./forked-repos
+
+echo "Next, install dependencies (Ctrl-C to cancel) for all repos"
 echo
 read -p"Next: $ " -e -i"pnpm install" COMMAND_IGNORED
 

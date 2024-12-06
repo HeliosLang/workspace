@@ -2,21 +2,113 @@
 
 source ./functions.sh
 
+diffOrStat() {
+    COMMAND=$1
+    if [[ -z $COMMAND ]]; then
+        echo "diffOrStat requires a command"
+        exit 1
+    fi
+    DIFF_SIZE=$(eval git $COMMAND -U0 --no-prefix | grep -v "^+++" | grep -v "^diff --git" | grep -v "^index "  | wc -l)
+    if [[ $DIFF_SIZE -lt 50 ]]; then
+        set -x 
+        # echo "DIFF ----------------"
+        eval git $COMMAND -U0 --no-prefix | grep -v "^+++" | grep -v "^diff --git" | grep -v "^index "
+        cat
+    else
+        STAT_CMD="$COMMAND --stat"
+        STAT_SIZE=$(eval git $STAT_CMD | wc -l)
+        if [[ $STAT_SIZE -lt 10 ]];
+        then
+            # echo "STAT verbatim ----------------"
+            eval git -c color.ui=always $STAT_CMD |
+            grep -v "files changed" |
+            cat
+        else
+            # echo "STAT trimmed ---------------"
+            # should show just the stat summary, and not the diff.
+            # assume the COMMAND was `git stash show`, which takes diff options.
+            eval "git -c color.ui=always $STAT_CMD --no-patch --stat --stat-count=7" |
+            cat
+        fi
+    fi           
+}
+
+showGraphVs() {
+    first=${1:-main}
+    second=${2:-origin/main}
+#    git -c color.ui=always log --graph --abbrev-commit --oneline --decorate --boundary HEAD..origin/main 
+    git -c color.ui=always log --graph --abbrev-commit --oneline --decorate --all --boundary ${first}..${second}
+}
+
 showStatus() {
     {
 #        git -c color.ui=always status --short  -b 
         RESULTS=$({ 
-            git  -c color.ui=always status --show-stash | 
+            git  -c color.ui=always status --show-stash --no-ahead-behind | 
             grep -v "Your branch is up to date with" |
             grep -v "no changes added to commit" |
             grep -v "Changes not staged for commit" |
             grep -v "working tree clean" |
             grep -v "what will be committed" |
+            grep -v "ahead-behind" |
+            grep -v "modified:" |
             grep -v "to discard changes in working directory" |
             grep -v "git restore --staged" |
-            grep -v "^On branch " |
+            grep -v "^On branch" |
             grep -ve "^\s*$" |
             cat
+
+            STASH_COUNT=$(git stash list | wc -l)
+            if [[ $STASH_COUNT -gt 0 ]]; then
+                diffOrStat "stash show --patch" | while read line; do
+                    echo "  stash> $line"
+                done
+            fi            
+
+            DIFF_CMD='git diff -U0 --no-prefix | grep -v "^+++" | grep -v "^diff --git" | grep -v "^index " '
+            DIFF_SIZE=$(eval $DIFF_CMD | wc -l)
+
+            # get the current branch name
+            BRANCH=$(git rev-parse --abbrev-ref HEAD)
+
+            GRAPH_SIZE1=$(showGraphVs main | wc -l)
+            # GRAPH_SIZE2=0
+            # if [[ $BRANCH != "main" ]]; then
+            #     GRAPH_SIZE2=$(showGraphVs $BRANCH main | wc -l)
+            # fi
+
+            if [[ $GRAPH_SIZE1 -gt 0 ||  $DIFF_SIZE -gt 0 || $BRANCH != "main" ]]; then
+                if [[ $GRAPH_SIZE1 -gt 0 ]]; then
+                    showGraphVs main
+                    echo "  -----------------"
+                fi
+
+                git -c color.ui=always branch -vv | 
+                	egrep --color=never "^\\*|ahead|behind"
+
+                echo -e "${YELLOW}On branch ${BLUE}${BRANCH}${NC}"
+            else
+                git -c color.ui=always branch -vv | 
+                	egrep --color=never "ahead|behind"
+            fi
+
+
+            # echo "- c"
+            if [[ $DIFF_SIZE -lt 30 ]]; then
+                eval $DIFF_CMD
+                # echo "-- diff"
+            else
+                STAT_CMD='git -c color.ui=always diff --stat'
+                STAT_SIZE=$(eval $STAT_CMD | wc -l)
+                if [[ $STAT_SIZE -lt 10 ]]; then
+                    eval $STAT_CMD |
+                    grep -v "files changed" |
+                    cat
+                else
+                    eval "$STAT_CMD --stat-count=7" |
+                    cat
+                fi
+            fi
         })
         [[ -z $RESULTS ]] || {
             echo "$RESULTS"

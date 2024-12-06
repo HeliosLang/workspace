@@ -1,0 +1,65 @@
+#!/bin/bash
+
+source ./functions.sh
+
+# reads a list of packages to be built in order.
+# it counts the packages to be build in parallel
+# when it encounters a "-" it reports how many pending builds there are, and waits for all the previous packages to finish building.
+
+# exit on any failure:
+set -e
+
+_FAILCOUNT=0
+cat deps-order | while read package ; do {
+    if [[ $package == "-" ]]; then
+        if [[ $_FAILCOUNT -ge 1 ]]; then
+            continue
+        fi
+        COUNT=$(jobs -p | wc -l)
+        echo "Waiting for $COUNT builds ..."
+        # wait || exit 1
+
+        # waits for a single job to finish, checks its exit status for success or failure
+        # if a job fails, the script will exit with status 1
+        # if a job succeeds, it shows how many jobs are still pending, and continues waiting for more jobs to finish.
+
+        while true; do
+            wait -n || {
+                echo
+                echo 
+                echo 2>&1
+                echo "Build failed" 2>&1
+                # increment the failed count
+                _FAILCOUNT=$((_FAILCOUNT + 1))   
+            }
+            COUNT=$(jobs -p | wc -l)
+            [[ $COUNT -eq 0 ]] && {
+                echo
+                if [[ $_FAILCOUNT -eq 0 ]] ; then {
+                    echo "  -- dependencies built; proceeding to next batch --"                    
+                } else {
+                    echo "  -- dependencies built; but ${_FAILCOUNT} failed; skipping remaining jobs --"
+                } fi
+                break
+            }
+            echo "Waiting for $COUNT builds ..."
+        done
+    else
+        if [[ $_FAILCOUNT -ge 1 ]]; then
+            echo "Skipping $package"
+            continue
+        fi
+        echo "Building $package"
+        {
+            # runs pnpm build, labels the output, and prints the output even if the build fails.
+            # if the build fails, the subtask exits with the same status code as the build.
+            # if the build succeeds, the subtask exits with status code 0.
+        
+            cd $package
+            pnpm build:types 1> >(labeledOutput "$package") || exit $?
+        } &
+    fi 
+} done
+
+wait
+

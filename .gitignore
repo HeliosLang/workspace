@@ -1,4 +1,5 @@
 .fork-config
+.heliosRepos
 *~
 node_modules/
 cbor/
