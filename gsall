@@ -1,6 +1,8 @@
 #!/bin/bash
+#set -x
 
 source ./functions.sh
+source ./.fork-config
 
 diffOrStat() {
     COMMAND=$1
@@ -35,9 +37,9 @@ diffOrStat() {
 
 showGraphVs() {
     first=${1:-main}
-    second=${2:-origin/main}
+    second=${2:-refs/remotes/${UPSTREAM_REMOTE_NAME:-upstream}/main}
 #    git -c color.ui=always log --graph --abbrev-commit --oneline --decorate --boundary HEAD..origin/main 
-    git -c color.ui=always log --graph --abbrev-commit --oneline --decorate --all --boundary ${first}..${second}
+    git -c color.ui=always log --graph --abbrev-commit --oneline --decorate --all --boundary ${first}..${second} --
 }
 
 showStatus() {
@@ -58,19 +60,21 @@ showStatus() {
             grep -ve "^\s*$" |
             cat
 
+#echo "--- stash" >&2
             STASH_COUNT=$(git stash list | wc -l)
             if [[ $STASH_COUNT -gt 0 ]]; then
                 diffOrStat "stash show --patch" | while read line; do
                     echo "  stash> $line"
                 done
             fi            
-
+#echo "--- diff" >&2
             DIFF_CMD='git diff -U0 --no-prefix | grep -v "^+++" | grep -v "^diff --git" | grep -v "^index " '
             DIFF_SIZE=$(eval $DIFF_CMD | wc -l)
 
             # get the current branch name
             BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
+# echo "--- graph size" >&2
             GRAPH_SIZE1=$(showGraphVs main | wc -l)
             # GRAPH_SIZE2=0
             # if [[ $BRANCH != "main" ]]; then
@@ -79,6 +83,7 @@ showStatus() {
 
             if [[ $GRAPH_SIZE1 -gt 0 ||  $DIFF_SIZE -gt 0 || $BRANCH != "main" ]]; then
                 if [[ $GRAPH_SIZE1 -gt 0 ]]; then
+     #               echo "  ----------------- show graph" >&2
                     showGraphVs main
                     echo "  -----------------"
                 fi
@@ -94,6 +99,7 @@ showStatus() {
 
 
             # echo "- c"
+# echo  "--- diff size" >&2
             if [[ $DIFF_SIZE -lt 30 ]]; then
                 eval $DIFF_CMD
                 # echo "-- diff"
@@ -101,10 +107,12 @@ showStatus() {
                 STAT_CMD='git -c color.ui=always diff --stat'
                 STAT_SIZE=$(eval $STAT_CMD | wc -l)
                 if [[ $STAT_SIZE -lt 10 ]]; then
+ #             echo " --- git diff-stat" >&2
                     eval $STAT_CMD |
                     grep -v "files changed" |
                     cat
                 else
+    #              echo " --- git diff-short-stat" >&2
                     eval "$STAT_CMD --stat-count=7" |
                     cat
                 fi
@@ -119,7 +127,7 @@ showStatus() {
 
 {
     eachRepo parallel buffered "checking \`git status\` in each repo" \
-        showStatus
+        showStatus $*
  } | optionalPager
 
 echo >&2

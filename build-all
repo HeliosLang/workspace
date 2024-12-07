@@ -9,10 +9,13 @@ source ./functions.sh
 # exit on any failure:
 set -e
 
+BUILD_CMD=${1:-build:types}
+
 _FAILCOUNT=0
 cat deps-order | while read package ; do {
     if [[ $package == "-" ]]; then
         if [[ $_FAILCOUNT -ge 1 ]]; then
+	    wait
             continue
         fi
         COUNT=$(jobs -p | wc -l)
@@ -56,7 +59,7 @@ cat deps-order | while read package ; do {
             # if the build succeeds, the subtask exits with status code 0.
         
             cd $package
-            pnpm build:types 1> >(labeledOutput "$package") || exit $?
+            pnpm $BUILD_CMD 1> >(labeledOutput "$package") || exit $?
         } &
     fi 
 } done
