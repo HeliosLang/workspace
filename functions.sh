@@ -149,6 +149,11 @@ eachRepo() {
             DIR="."
             LABEL="workspace:./"
         fi
+      [[ -d $DIR ]] || { 
+         echo "skipping missing directory: $DIR" >&2
+      }        
+      [[ -d $DIR ]] && {
+        
         TEMP=""
         [[ -z "$buffered" ]] || {
             TEMP=$(mktemp $TMPD/${REPO}.XXXXXX)
@@ -183,6 +188,7 @@ eachRepo() {
         # [[ "compiler" == "${REPO}" ]] && {
         #     break
         # }
+      }
     } done
     [[ -z parallel ]] || {
         wait
