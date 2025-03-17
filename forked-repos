@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 echo "This script will add remotes for any of the HeliosLang repos you have forked."
 [[ -f .fork-config ]] || {
