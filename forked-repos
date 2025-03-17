@@ -30,8 +30,11 @@ addRemote() {
 
     echo "Checking for fork at https://api.github.com/repos/${USER_REPO_P}"
    FOUND=$(
-        curl --silent --fail-with-body "https://api.github.com/repos/${USER_REPO_P}" 
-    )
+        curl --silent --fail-with-body \
+		--header "Authorization: Bearer $GITHUB_TOKEN" \
+		 "https://api.github.com/repos/${USER_REPO_P}" 
+ 
+   )
     RESULT=$?
     # echo "RESULT: $RESULT"
     # echo "FOUND: $FOUND"
