@@ -1,0 +1,15 @@
+cbor
+codec-utils
+compiler
+compiler-utils
+contract-utils
+crypto
+era
+esbuild-plugin
+ir
+ledger
+rollup-plugin
+tx-utils
+type-utils
+uplc
+vscode-plugin

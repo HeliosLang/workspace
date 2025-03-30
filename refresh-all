@@ -1,9 +1,6 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 source ./functions.sh
-[[ -f ./heliosRepos ]] && {
-    rm ./.heliosRepos
-}
 
 cloneIfNeeded() {
     [[ -d $REPO/.git ]] || {

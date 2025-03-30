@@ -1,5 +1,4 @@
-#!/bin/bash
-
+#!/usr/bin/env bash
 # [[ -f ./.heliosRepos ]] && {
 #     echo "Helios repos already fetched.  To re-fetch, delete ./.heliosRepos before running this script." >&2
 #     exit 0

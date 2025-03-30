@@ -12,6 +12,7 @@
     "pnpm": {
         "overrides": {
         }
+    },
+    "dependencies": {
     }
-
 }

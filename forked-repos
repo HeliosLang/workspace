@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 echo "This script will add remotes for any of the HeliosLang repos you have forked."
 [[ -f .fork-config ]] || {
@@ -30,8 +30,11 @@ addRemote() {
 
     echo "Checking for fork at https://api.github.com/repos/${USER_REPO_P}"
    FOUND=$(
-        curl --silent --fail-with-body "https://api.github.com/repos/${USER_REPO_P}" 
-    )
+        curl --silent --fail-with-body \
+		--header "Authorization: Bearer $GITHUB_TOKEN" \
+		 "https://api.github.com/repos/${USER_REPO_P}" 
+ 
+   )
     RESULT=$?
     # echo "RESULT: $RESULT"
     # echo "FOUND: $FOUND"

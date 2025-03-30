@@ -58,6 +58,10 @@ This runs `git diff` across all these repos for visibility of the particular cha
 
 This uses `git pull` to receive any updates from the origin or from your fork - again, across all the repos.  Look out for any ERROR indicating you might be out of sync.
 
+#### Use Github API token
+
+If you encounter a problem with API rate-limits, allocate a Personal Access Token in the Github UI and make it available in the GITHUB_TOKEN environment variable.
+
 ### Contributing
 
 Your contributions make Helios better 💜
