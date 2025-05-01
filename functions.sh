@@ -74,8 +74,36 @@ eachRepoUsage() {
 REPOS=""
 fetchRepoList() {
     [[ -z "$REPOS" ]] && {
-        REPOS=$(cat ./essentialRepos)
+    	[[ -f ./.heliosRepos ]] || {
+    	    echo "created ./.heliosRepos"
+            cp essentialRepos .heliosRepos
+        }
+        
+        [[ -f ./.heliosRepos ]] && {
+            REPOS=$(cat ./.heliosRepos)
+            return
+        } 
 
+        echo -n "  -- fetching Helios repo list ... "
+        OK=""
+        REPOS=$(
+        	curl --silent https://github.com/orgs/HeliosLang/repositories.json | 
+                jq -r '.payload.repositories[].name' |
+               # grep -ev "^cli$" |
+                sort
+        )
+        if [[ $? -ne 0 ]] ; then {
+            echo "failed!"
+            echo
+            echo "Error: failed fetching Helios repo list ... are you online?"
+        } else {
+            OK=1
+            echo "$REPOS" > ./.heliosRepos
+            echo "created ./.heliosRepos"
+            echo ok
+        } ; fi
+       [[ -z "$OK" ]] && exit 42
+    } >&2
 }
 
 eachRepo() {
@@ -126,12 +154,12 @@ eachRepo() {
             DIR="."
             LABEL="workspace:./"
         fi
-      [[ -d $DIR ]] || {
-        [[ -z $nocd ]] && { 
+
+      [[ ! -d $DIR && ! $nocd ]] && { 
          echo "skipping missing directory: $DIR" >&2
-        }         
-      }
-      [[ -d $DIR ]] || [[ -n $nocd ]] && {
+         continue
+      }        
+      {        
         TEMP=""
         [[ -z "$buffered" ]] || {
             TEMP=$(mktemp $TMPD/${REPO}.XXXXXX)
@@ -160,7 +188,12 @@ eachRepo() {
         [[ -z $parallel ]] && {
             # foreground; buffering is senseless
             [[ -z $nocd ]] && pushd $DIR >/dev/null
-             $func  2> >(labeledErrors $LABEL)
+            [[ $buffered ]] && {
+                $func  2> >(labeledErrors $LABEL)
+            }
+            [[ $buffered ]] || {
+                $func 
+            }
             [[ -z $nocd ]] && popd > /dev/null
          } 
         # [[ "compiler" == "${REPO}" ]] && {

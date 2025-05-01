@@ -48,6 +48,10 @@ cat deps-order | while read package ; do {
             echo "Waiting for $COUNT builds ..."
         done
     else
+        if [[ $package == "-----" ]]; then
+            echo "Done!"
+            exit 0
+        fi
         if [[ $_FAILCOUNT -ge 1 ]]; then
             echo "Skipping $package"
             continue
