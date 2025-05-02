@@ -80,4 +80,10 @@ read -p"Next: $ " -e -i"pnpm install" COMMAND_IGNORED
 
 pnpm install
 
+echo "Next, build all packages (Ctrl-C to cancel)"
+echo
+read -p"Next: $ " -e -i"pnpm build:all" COMMAND_IGNORED
+
+pnpm build:all
+
 echo

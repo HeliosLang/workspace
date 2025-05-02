@@ -28,12 +28,14 @@ addRemote() {
         return
     }
 
+    GITHUB_AUTHZ="--header \"Authorization: Bearer $GITHUB_TOKEN\""
+    [[ -z $GITHUB_TOKEN ]] && {
+        GITHUB_AUTHZ=""
+    }
     echo "Checking for fork at https://api.github.com/repos/${USER_REPO_P}"
    FOUND=$(
-        curl --silent --fail-with-body \
-		--header "Authorization: Bearer $GITHUB_TOKEN" \
-		 "https://api.github.com/repos/${USER_REPO_P}" 
- 
+        curl --silent --fail-with-body $GITHUB_AUTHZ \
+		 "https://api.github.com/repos/${USER_REPO_P}"  
    )
     RESULT=$?
     # echo "RESULT: $RESULT"
